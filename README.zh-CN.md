@@ -1,44 +1,31 @@
 # ActivityWatch Web Watcher Plus
 
-这是 `aw-watcher-web` 的一个可配置分支版本，核心目标是让用户在扩展设置页中手动填写 ActivityWatch 服务端地址，而不是只能在构建时写死。
+这是 `aw-watcher-web` 的一个可配置分支版本，用于支持在扩展安装后通过设置页配置 ActivityWatch 服务端地址。
 
-这份 README 只面向当前这个 fork 本身，不再沿用上游项目的说明结构。它主要用于：
+## 项目概述
 
-- 日常使用这个仓库
-- 后续向上游提交 PR 时说明这次改动
-- 满足 Firefox 扩展源码提交流程中的构建与审核说明要求
+该扩展会跟踪当前活动浏览器标签页，并将数据按照 ActivityWatch 的
+`web.tab.current` 事件格式发送到已配置的 ActivityWatch 服务端。
 
-## 这个 Fork 解决了什么问题
+与上游版本相比，这个 fork 的核心差异是：
 
-上游扩展更偏向固定服务器地址或构建时指定服务器地址的使用方式。这个 fork 的重点改动是：
+- 服务端地址可以在扩展设置页中运行时修改
+- 不再要求只能在构建时固定服务器地址
 
-- 扩展安装后，用户可以直接在设置页里修改 ActivityWatch 服务端地址
-- 修改后无需重新打包扩展
-- 已保存的运行时地址优先生效
-- 仍然保留构建时设置默认服务器地址的能力
+## Fork 改动
 
-这让它更适合：
-
-- 自托管 ActivityWatch
-- 内部网络部署
-- 需要给不同用户配置不同服务端地址的场景
-
-## 相比上游的主要改动
-
-当前 fork 主要做了这些改动：
+相较于上游 `aw-watcher-web`，当前 fork 包含以下改动：
 
 - 在设置页新增 `ActivityWatch Server URL`
-- 将用户填写的服务器地址保存到浏览器本地存储
-- 后台创建 ActivityWatch 客户端时优先读取运行时配置
+- 将服务器地址持久化到浏览器本地存储
+- 后台优先使用运行时保存的服务器地址
 - 保留 `VITE_ACTIVITYWATCH_BASE_URL` 作为构建时默认值
-- 让弹窗中的 Web UI 链接跟随当前配置的服务器地址
-- 为 Firefox 补充现代审核需要的
-  `browser_specific_settings.gecko.data_collection_permissions`
-- 使用 fork 自己的 Firefox 扩展 ID，避免与上游扩展冲突
-- 补齐打包时必须存在的静态资源
-- 重写文档，明确当前 fork 的构建、发布与审核流程
+- 让弹窗中的 Web UI 链接与当前配置的服务器保持一致
+- 增加 Firefox 浏览活动采集声明元数据
+- 使用 fork 独立的 Firefox 扩展 ID
+- 补充打包和 Firefox 校验所需的静态资源
 
-## 采集的数据
+## 采集数据
 
 扩展会上报当前活动标签页，并使用 ActivityWatch 的
 `web.tab.current` 事件类型。
@@ -51,32 +38,28 @@
 - `incognito`
 - `tabCount`
 
-## 如何配置服务器地址
+## 服务器配置
 
-这个 fork 支持两种方式指定 ActivityWatch 服务端：
+当前 fork 支持两种方式指定 ActivityWatch 服务端：
 
-1. 在扩展设置页中手动填写
-2. 构建时通过 `VITE_ACTIVITYWATCH_BASE_URL` 指定默认值
+1. 在扩展设置页中运行时配置
+2. 在构建时通过 `VITE_ACTIVITYWATCH_BASE_URL` 指定默认值
 
-日常使用时，推荐优先使用第一种，也就是设置页配置。
+如果两者同时存在，则优先使用运行时保存的服务器地址。
 
-## 在扩展设置页里配置服务器
+### 在扩展设置页中配置服务器
 
 安装扩展后：
 
 1. 打开扩展设置页
 2. 找到 `ActivityWatch Server URL`
-3. 输入服务端地址，例如 `http://localhost:5600`
+3. 输入服务器地址，例如 `http://localhost:5600`
 4. 点击 `Save`
-5. 扩展会自动重载并开始使用新的地址
+5. 扩展会自动重载并开始使用新的服务器地址
 
-如果用户已经保存了运行时服务器地址，那么它会覆盖构建时默认值。
+### 构建时设置默认服务器
 
-## 构建时写入默认服务器地址
-
-如果你希望打包出来的扩展自带一个默认服务器地址，可以在构建时传入 `VITE_ACTIVITYWATCH_BASE_URL`。
-
-示例：
+如果需要在打包时提供默认服务器地址，可以在构建时传入：
 
 ```sh
 # Chrome
@@ -90,33 +73,30 @@ VITE_TARGET_BROWSER=firefox \
 npx vite build
 ```
 
-## Firefox 审核相关说明
+## Firefox 相关说明
 
-这个 fork 在 Firefox 方向上与上游有几项明确差异：
+当前 fork 包含以下 Firefox 相关配置：
 
-- 增加了 `data_collection_permissions`
-  因为扩展会采集浏览活动并发送到用户配置的 ActivityWatch 服务端
-- 使用了 fork 自己的扩展 ID：
-  `aw-watcher-web-configurable@local`
-- 为了支持“用户可修改任意兼容服务器地址”，当前在 Firefox 中使用了较宽的 host 权限
-
-如果后续要向上游提 PR，这一部分很可能需要和上游作者单独讨论，因为权限策略与 AMO 审核策略有关。
+- `browser_specific_settings.gecko.data_collection_permissions` 声明了
+  `browsingActivity`
+- Firefox 扩展 ID 为 `aw-watcher-web-configurable@local`
+- 为支持运行时修改服务器地址，当前使用了较宽的 host 权限
 
 ## 构建环境
 
 ### 操作系统
 
-推荐环境：
+推荐：
 
 - Linux 或 macOS
-- Windows 也可以用于本地开发，但打包 zip 时要注意路径分隔符问题
+- Windows 也支持本地开发
 
-### 必需工具
+### 所需工具
 
 - Node.js 23 及以上
 - npm 10 及以上
 
-当前仓库使用的主要构建工具版本来自 `package.json`：
+主要构建工具版本定义在 `package.json` 中：
 
 - TypeScript `5.7.3`
 - Vite `6.0.11`
@@ -128,9 +108,9 @@ npx vite build
 npm ci
 ```
 
-## 构建脚本
+## 构建
 
-仓库内已经包含 `Makefile`，可用目标包括：
+仓库中包含 `Makefile`，可用目标包括：
 
 - `make install`
 - `make compile`
@@ -138,7 +118,7 @@ npm ci
 - `make build-firefox`
 - `make build-safari`
 
-如果手动执行，等价命令是：
+对应的直接命令为：
 
 ```sh
 # 类型检查
@@ -151,17 +131,15 @@ VITE_TARGET_BROWSER=chrome npx vite build
 VITE_TARGET_BROWSER=firefox npx vite build
 ```
 
-构建结果会输出到 `build/` 目录。
+构建结果输出到 `build/` 目录。
 
 ## Firefox 打包
 
-Firefox 本地测试时，最简单的方式是直接加载：
+本地调试时，Firefox 可直接加载：
 
 - `build/manifest.json`
 
-如果要生成 Firefox zip 包，请先构建，再把 `build/` 目录内容打包。
-
-在 Windows 上推荐使用：
+在 Windows 上生成 Firefox zip 包的推荐方式：
 
 ```powershell
 $env:VITE_TARGET_BROWSER='firefox'
@@ -169,16 +147,14 @@ npx vite build
 tar.exe -a -c -f artifacts\firefox.zip -C build .
 ```
 
-为什么不用 `Compress-Archive`：
-
-- 它可能会在 zip 内部写入 Windows 风格的反斜杠路径
-- Firefox 会拒绝这种压缩包
+推荐使用 `tar.exe` 而不是 `Compress-Archive`，因为 Firefox 会拒绝包含
+Windows 反斜杠路径的 zip 包。
 
 ## 安装构建后的扩展
 
 ### Chrome / Edge
 
-1. 先构建 Chrome 版本
+1. 构建 Chrome 版本
 2. 打开 `chrome://extensions`
 3. 开启开发者模式
 4. 点击“加载已解压的扩展程序”
@@ -186,24 +162,28 @@ tar.exe -a -c -f artifacts\firefox.zip -C build .
 
 ### Firefox
 
-1. 先构建 Firefox 版本
+1. 构建 Firefox 版本
 2. 打开 `about:debugging#/runtime/this-firefox`
 3. 点击“加载临时附加组件”
 4. 选择 `build/manifest.json`
 
-## 提交 Firefox 源代码包时应包含什么
+## Firefox 源代码提交
 
-如果你要向 Firefox 提交源码包，这个仓库已经具备基本所需信息，但源码包应尽量保留以下内容：
+提交 Firefox 源码包时，应包含仓库源码和构建说明。
 
-- 本 README
+建议包含的内容：
+
+- `README.zh-CN.md`
+- `README.md`
 - `package.json`
 - `package-lock.json`
 - `Makefile`
+- `vite.config.ts`
+- `tsconfig.json`
 - `src/`
 - `public/`
-- 其他构建所需仓库文件
 
-审核侧最小构建步骤可以写成：
+最小 Firefox 构建步骤：
 
 ```sh
 npm ci
@@ -212,24 +192,8 @@ VITE_TARGET_BROWSER=firefox npx vite build
 
 预期输出：
 
-- 在 `build/` 下生成 Firefox 扩展
-- `build/manifest.json` 为最终生成结果
-
-同时注意：
-
-- 不要把你自己写的源代码只提交转译后或压缩后的版本
-- 第三方依赖通过 `npm ci` 安装即可
-- 构建说明应写在 README 或审核者备注中
-
-## 方便提 PR 给上游的变更总结
-
-如果后面你要向上游作者提 PR，可以把这个 fork 的改动概括为：
-
-- 增加运行时可配置的 ActivityWatch 服务端地址
-- 保留构建时默认服务器地址能力
-- 让 popup 与后台客户端统一读取当前配置
-- 为 Firefox 审核补齐必要元数据
-- 不改变 ActivityWatch 事件格式本身
+- `build/` 下生成 Firefox 扩展
+- 生成 `build/manifest.json`
 
 ## English README
 
