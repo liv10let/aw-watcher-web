@@ -1,14 +1,42 @@
-# aw-watcher-web
+# ActivityWatch Web Watcher Plus
 
-A browser extension that sends active tab activity to an ActivityWatch server.
+A configurable fork of `aw-watcher-web` that lets users choose the
+ActivityWatch server URL from the extension settings page.
 
-This project is based on `aw-watcher-web`, but the README below documents this
-repository as-is: how to configure it, build it, and use it with your own
-ActivityWatch server.
+This README is written for the current fork, not the upstream project. It is
+intended to help with:
 
-## What It Collects
+- day-to-day usage of this repository
+- preparing a pull request back to the upstream project
+- submitting source code for Firefox add-on review
 
-The extension reports the current active browser tab as ActivityWatch
+## Why This Fork Exists
+
+The upstream extension is designed around a fixed or build-time server target.
+This fork adds a user-configurable server URL workflow so the extension can be
+installed once and then pointed at any compatible ActivityWatch server from the
+browser settings UI.
+
+## What Changed Compared To Upstream
+
+This fork currently adds or changes the following behavior:
+
+- Adds an `ActivityWatch Server URL` field to the extension settings page
+- Stores the configured server URL in browser local storage
+- Uses the saved runtime server URL when creating the ActivityWatch client
+- Keeps support for a build-time default server through
+  `VITE_ACTIVITYWATCH_BASE_URL`
+- Updates popup behavior so the Web UI link follows the active configured server
+- Adds Firefox manifest metadata required for modern review
+  (`data_collection_permissions`)
+- Uses a fork-specific Firefox add-on ID so it does not collide with the
+  upstream add-on
+- Adds local static assets required for packaging and validation
+- Rewrites repository documentation for this fork and its build/review workflow
+
+## Data Collected
+
+The extension reports the currently active browser tab as ActivityWatch
 `web.tab.current` events.
 
 Each event includes:
@@ -19,16 +47,16 @@ Each event includes:
 - `incognito`
 - `tabCount`
 
-## How Server Configuration Works
+## Server Configuration
 
-This project supports two ways to choose the ActivityWatch server:
+This fork supports two ways to choose the ActivityWatch server:
 
 1. Runtime configuration in the extension settings page
 2. Build-time default configuration through `VITE_ACTIVITYWATCH_BASE_URL`
 
-The runtime setting is the one users should use in normal daily usage.
+In normal usage, the runtime setting is the preferred method.
 
-## Configure Server In The Extension
+## Configure The Server In The Extension
 
 After installing the extension:
 
@@ -36,9 +64,10 @@ After installing the extension:
 2. Find `ActivityWatch Server URL`
 3. Enter your server address, for example `http://localhost:5600`
 4. Click `Save`
-5. The extension will reload and start using the new server
+5. The extension reloads and starts using the new server
 
-This is the recommended way to use this project.
+If a runtime server URL is saved, it takes precedence over the build-time
+default.
 
 ## Build-Time Default Server
 
@@ -59,50 +88,98 @@ VITE_TARGET_BROWSER=firefox \
 npx vite build
 ```
 
-If the user later changes the server URL in the settings page, the saved runtime
-value takes precedence over the build-time default.
+## Firefox Review Notes
 
-## Firefox Notes
+This fork is intentionally different from upstream in a few Firefox-specific
+ways:
 
-This repository currently allows Firefox to connect to configurable server
-addresses by using broad host access in the extension manifest.
+- It declares `browser_specific_settings.gecko.data_collection_permissions`
+  because the add-on collects browsing activity and sends it to a user-chosen
+  ActivityWatch server
+- It uses a fork-specific add-on ID:
+  `aw-watcher-web-configurable@local`
+- It currently uses broad host access in Firefox so the configured server URL
+  can be changed by the user without rebuilding
 
-That is convenient for self-hosted deployments and internal use. If you plan to
-publish this version publicly, you should review whether the permission scope is
-appropriate for your release target.
+If this fork is proposed upstream, the permissions strategy may need separate
+discussion depending on AMO policy expectations.
 
-## Development
+## Build Environment
 
-### Requirements
+### Operating System
 
-- Node.js 23+
-- npm
+Recommended:
 
-### Install Dependencies
+- Linux or macOS
+- Windows also works for local development, but note the packaging caveat below
+
+### Required Tools
+
+- Node.js 23 or newer
+- npm 10+ or newer
+
+This repository currently uses the following build tooling:
+
+- TypeScript `5.7.3`
+- Vite `6.0.11`
+- `vite-plugin-web-extension` `4.4.3`
+
+These versions come from `package.json`.
+
+## Install Dependencies
 
 ```sh
 npm ci
 ```
 
-### Type Check
+## Build Scripts
+
+This repository includes a `Makefile` with build targets:
+
+- `make install`
+- `make compile`
+- `make build-chrome`
+- `make build-firefox`
+- `make build-safari`
+
+For direct manual builds, the equivalent commands are:
 
 ```sh
+# Type check
 npx tsc --noEmit
-```
 
-### Build
-
-```sh
-# Chrome
+# Chrome build
 VITE_TARGET_BROWSER=chrome npx vite build
 
-# Firefox
+# Firefox build
 VITE_TARGET_BROWSER=firefox npx vite build
 ```
 
 The output is written to the `build` directory.
 
-## Install The Built Extension
+## Packaging Firefox
+
+For Firefox local testing, the simplest workflow is to load:
+
+- `build/manifest.json`
+
+For a packaged Firefox zip, build first and then archive the contents of
+`build/`.
+
+Recommended command on Windows:
+
+```powershell
+$env:VITE_TARGET_BROWSER='firefox'
+npx vite build
+tar.exe -a -c -f artifacts\firefox.zip -C build .
+```
+
+Why `tar.exe` instead of `Compress-Archive`:
+
+- `Compress-Archive` can produce Windows-style backslash paths inside the zip
+- Firefox validation rejects those archive entry names
+
+## Installing The Built Extension
 
 ### Chrome / Edge
 
@@ -119,15 +196,45 @@ The output is written to the `build` directory.
 3. Click `Load Temporary Add-on`
 4. Select `build/manifest.json`
 
-## Recommended Workflow
+## Source Code Submission For Firefox Review
 
-For most usage, the simplest workflow is:
+If you submit this add-on to Firefox and need to upload source code, include the
+repository source and keep these points in mind:
 
-1. Build the extension
-2. Install it in the browser
-3. Open settings
-4. Set `ActivityWatch Server URL`
-5. Save and start using it
+- Submit source files, not transpiled or minified source authored by you
+- Third-party dependencies remain installable through `npm ci`
+- Build instructions must be included in the source package README or reviewer
+  notes
+- The source package should contain:
+  - this README
+  - `package.json`
+  - `package-lock.json`
+  - `Makefile`
+  - the `src/` directory
+  - the `public/` directory
+  - other repository files needed to reproduce the build
+
+Minimal reviewer build steps:
+
+```sh
+npm ci
+VITE_TARGET_BROWSER=firefox npx vite build
+```
+
+Expected output:
+
+- a Firefox extension build in `build/`
+- `manifest.json` generated under `build/`
+
+## Suggested PR Summary
+
+If you plan to open a PR against upstream, the change can be summarized as:
+
+- add runtime-configurable ActivityWatch server URL support
+- keep build-time default server support for packaged deployments
+- make popup and background client use the configured runtime server
+- add Firefox review metadata required by modern submission flow
+- keep ActivityWatch event format unchanged
 
 ## Chinese README
 
