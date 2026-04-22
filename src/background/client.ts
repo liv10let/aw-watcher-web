@@ -6,7 +6,10 @@ import { emitNotification, getBrowser, logHttpError } from './helpers'
 import { getHostname, getSyncStatus, setSyncStatus } from '../storage'
 
 export const getClient = () =>
-  new AWClient('aw-client-web', { testing: config.isDevelopment })
+  new AWClient('aw-client-web', {
+    baseURL: config.activityWatch.baseUrl,
+    testing: config.isDevelopment,
+  })
 
 // TODO: We might want to get the hostname somehow, maybe like this:
 // https://stackoverflow.com/questions/28223087/how-can-i-allow-firefox-or-chrome-to-read-a-pcs-hostname-or-other-assignable

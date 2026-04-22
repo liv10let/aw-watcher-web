@@ -5,6 +5,54 @@
 
 A cross-browser WebExtension that serves as a web browser watcher for [ActivityWatch][activitywatch].
 
+中文说明请见 [README.zh-CN.md](./README.zh-CN.md)。
+
+## Server Configuration
+
+By default, this project sends browser heartbeat data to:
+
+- `http://localhost:5600`
+
+The extension still uses the standard ActivityWatch `web.tab.current` bucket
+type and sends the same browser event fields as upstream, including:
+
+- `url`
+- `title`
+- `audible`
+- `incognito`
+- `tabCount`
+
+If you want to point the extension at a different ActivityWatch server:
+
+- Set `VITE_ACTIVITYWATCH_BASE_URL` when building, or update `src/config.ts`
+- Update `src/manifest.json` to allow the target API origin in Firefox
+- Update `src/popup/index.html` if you also want the popup Web UI link to match
+
+Example: build against a remote ActivityWatch server
+
+```sh
+# Chrome
+VITE_ACTIVITYWATCH_BASE_URL=http://your-server:5600 \
+VITE_TARGET_BROWSER=chrome \
+npx vite build
+
+# Firefox
+VITE_ACTIVITYWATCH_BASE_URL=http://your-server:5600 \
+VITE_TARGET_BROWSER=firefox \
+npx vite build
+```
+
+For Firefox, remember to also allow the matching API origin in
+`src/manifest.json`, for example:
+
+```json
+{
+  "permissions": [
+    "http://your-server:5600/api/*"
+  ]
+}
+```
+
 ## Installation
 
 ### Official Releases
@@ -85,6 +133,10 @@ This will create zip files in the `artifacts` directory:
 
 - `artifacts/firefox.zip` for Firefox
 - `artifacts/chrome.zip` for Chrome
+
+For local unpacked installs built from this fork, the generated extension will
+connect to the server configured in `src/config.ts` or overridden by
+`VITE_ACTIVITYWATCH_BASE_URL`.
 
 ## if you want to build safari version
 
