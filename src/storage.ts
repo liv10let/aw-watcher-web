@@ -77,6 +77,14 @@ export const getBaseUrl = (): Promise<BaseUrl | undefined> =>
 export const setBaseUrl = (baseUrl: BaseUrl) =>
   browser.storage.local.set({ baseUrl })
 
+type ServerUrl = string
+export const getServerUrl = (): Promise<ServerUrl | undefined> =>
+  browser.storage.local
+    .get('serverUrl')
+    .then((_) => _.serverUrl as string | undefined)
+export const setServerUrl = (serverUrl: ServerUrl) =>
+  browser.storage.local.set({ serverUrl })
+
 type HeartbeatData = IEvent['data']
 export const getHeartbeatData = (): Promise<HeartbeatData | undefined> =>
   browser.storage.local

@@ -1,9 +1,12 @@
 import browser from 'webextension-polyfill'
+import config from '../config'
 import {
   getBrowserName,
   setBrowserName,
+  getServerUrl,
   getHostname,
   setHostname,
+  setServerUrl,
 } from '../storage'
 import { detectBrowser } from '../background/helpers'
 
@@ -33,6 +36,10 @@ async function saveOptions(e: SubmitEvent): Promise<void> {
   if (!hostnameInput) return
 
   const hostname = hostnameInput.value
+  const serverUrlInput = document.querySelector<HTMLInputElement>('#serverUrl')
+  if (!serverUrlInput) return
+
+  const serverUrl = serverUrlInput.value.trim().replace(/\/+$/, '')
 
   const form = e.target as HTMLFormElement
   const button = form.querySelector<HTMLButtonElement>('button')
@@ -44,6 +51,7 @@ async function saveOptions(e: SubmitEvent): Promise<void> {
   try {
     await setBrowserName(selectedBrowser)
     await setHostname(hostname)
+    await setServerUrl(serverUrl)
     await reloadExtension()
     button.textContent = 'Save'
     button.classList.add('accept')
@@ -94,6 +102,17 @@ async function restoreOptions(): Promise<void> {
 
     if (hostname !== undefined) {
       hostnameInput.value = hostname
+    }
+
+    const serverUrl = await getServerUrl()
+    const serverUrlInput =
+      document.querySelector<HTMLInputElement>('#serverUrl')
+    if (!serverUrlInput) return
+
+    if (serverUrl !== undefined) {
+      serverUrlInput.value = serverUrl
+    } else {
+      serverUrlInput.value = config.activityWatch.baseUrl
     }
   } catch (error) {
     console.error('Failed to restore options:', error)

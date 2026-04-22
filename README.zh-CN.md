@@ -1,15 +1,14 @@
 # aw-watcher-web
 
-[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/nglaklhklhcoonedhgnpgddginnjdadi.svg)][chrome]
-[![Mozilla Add-on](https://img.shields.io/amo/v/aw-watcher-web.svg)][firefox]
+这是一个浏览器扩展，用来把当前活动标签页的数据发送到 ActivityWatch 服务端。
 
-一个跨浏览器的 WebExtension，用来把浏览器中的活动标签页信息记录到 [ActivityWatch][activitywatch]。
+这个仓库基于 `aw-watcher-web` 改造而来，但下面这份说明只面向当前这个项目本身：怎么配置、怎么构建、怎么安装、怎么连接你自己的 ActivityWatch 服务端。
 
-## 项目说明
+## 采集内容
 
-这个项目采集的是当前活动标签页的浏览行为，并通过 ActivityWatch 标准接口上报。
+扩展会上报当前活动标签页，并按照 ActivityWatch 的 `web.tab.current` 事件类型发送数据。
 
-默认采集字段包括：
+每条事件包含这些字段：
 
 - `url`
 - `title`
@@ -17,23 +16,32 @@
 - `incognito`
 - `tabCount`
 
-默认情况下，本项目会把数据发送到本机 ActivityWatch 服务端：
+## 服务器地址如何配置
 
-- `http://localhost:5600`
+这个项目支持两种方式指定 ActivityWatch 服务端地址：
 
-如果你需要改成其他 ActivityWatch 服务端地址，可以用两种方式：
+1. 在扩展设置页里手动填写
+2. 构建时通过 `VITE_ACTIVITYWATCH_BASE_URL` 指定默认值
 
-1. 构建时设置环境变量 `VITE_ACTIVITYWATCH_BASE_URL`
-2. 直接修改 `src/config.ts`
+日常使用时，推荐优先使用第一种，也就是在扩展设置页里配置。
 
-如果目标地址不是本机，还需要同步检查：
+## 在扩展设置页里配置服务器地址
 
-- `src/manifest.json`
-  Firefox 需要显式放行目标 API 地址
-- `src/popup/index.html`
-  如果希望扩展弹窗中的 Web UI 链接也跳到新地址，需要一起修改
+安装扩展后：
 
-示例：构建一个连接远端 ActivityWatch 服务端的版本
+1. 打开扩展设置页
+2. 找到 `ActivityWatch Server URL`
+3. 输入你的服务端地址，例如 `http://localhost:5600`
+4. 点击 `Save`
+5. 扩展会自动重载，并开始使用新的地址
+
+这也是当前项目最推荐的使用方式。
+
+## 构建时写入默认服务器地址
+
+如果你希望打包出来的扩展自带一个默认服务器地址，可以在构建时传入 `VITE_ACTIVITYWATCH_BASE_URL`。
+
+示例：
 
 ```sh
 # Chrome
@@ -47,151 +55,72 @@ VITE_TARGET_BROWSER=firefox \
 npx vite build
 ```
 
-如果是 Firefox，还需要在 `src/manifest.json` 里放行对应的 API 地址，例如：
+如果用户之后又在设置页里修改了服务器地址，那么运行时保存的地址会优先生效，覆盖构建时默认值。
 
-```json
-{
-  "permissions": [
-    "http://your-server:5600/api/*"
-  ]
-}
-```
+## Firefox 说明
 
-## 安装
+为了支持在 Firefox 中填写可配置的服务器地址，这个仓库当前使用了较宽的 host 权限配置。
 
-### 官方版本
+这对自托管、内部使用和个人部署很方便；但如果你将来要把这个版本公开发布到扩展商店，建议再单独评估一下权限范围是否需要收紧。
 
-你可以直接从官方商店安装：
+## 开发说明
 
-- [Chrome Web Store][chrome]
-- [Firefox Add-ons][firefox]
+### 环境要求
 
-### 开发版构建产物
+- Node.js 23 及以上
+- npm
 
-也可以从 GitHub Actions 下载构建好的开发版本：
-
-1. 打开最新一次成功的工作流
-2. 下拉到 `Artifacts`
-3. 下载 `firefox.zip` 或 `chrome.zip`
-
-> [!NOTE]
->
-> - 下载 Actions 产物通常需要登录 GitHub
-> - 这些构建通常是未签名版本，需要浏览器开发者模式
-
-### Firefox 企业策略
-
-> [!NOTE]
-> 由于 Mozilla 插件政策限制，Mozilla 商店中的版本无法直接跳过隐私说明。如果你使用的是自己构建的版本，可以通过 Firefox Enterprise Policy 预先接受该说明。
-
-示例策略如下：
-
-```json
-{
-  "policies": {
-    "3rdparty": {
-      "Extensions": {
-        "{ef87d84c-2127-493f-b952-5b4e744245bc}": {
-          "consentOfflineDataCollection": true
-        }
-      }
-    }
-  }
-}
-```
-
-## 从源码构建
-
-### 前置要求
-
-- Node.js 23 或更高版本
-- Git
-- Make
-
-### 构建步骤
-
-1. 克隆仓库：
+### 安装依赖
 
 ```sh
-git clone --recurse-submodules https://github.com/ActivityWatch/aw-watcher-web.git
-cd aw-watcher-web
+npm ci
 ```
 
-2. 安装依赖：
+### 类型检查
 
 ```sh
-make install
+npx tsc --noEmit
 ```
 
-3. 构建扩展：
+### 构建
 
 ```sh
-# Firefox
-make build-firefox
-
 # Chrome
-make build-chrome
+VITE_TARGET_BROWSER=chrome npx vite build
+
+# Firefox
+VITE_TARGET_BROWSER=firefox npx vite build
 ```
 
-构建完成后会在 `artifacts` 目录中生成：
+构建结果会输出到 `build` 目录。
 
-- `artifacts/firefox.zip`
-- `artifacts/chrome.zip`
+## 安装构建后的扩展
 
-如果你在构建时设置了 `VITE_ACTIVITYWATCH_BASE_URL`，生成的扩展会连接到你指定的 ActivityWatch 服务端。
+### Chrome / Edge
 
-### 构建 Safari 版本
-
-1. 先按上面的步骤完成基础构建：
-
-```sh
-make install
-make build-safari
-```
-
-2. 再将扩展转换为 Safari 格式：
-
-```sh
-xcrun safari-web-extension-converter ./build
-```
-
-3. 然后在 Xcode 中：
-
-- 选择 macOS 构建目标
-- 执行构建
-- 运行扩展
-
-4. 最后在 Safari 中启用扩展：
-
-- 打开 Safari
-- 进入 `Safari > Settings > Extensions`
-- 启用 `aw-watcher-web`
-
-> [!NOTE]
->
-> - 需要先安装 Xcode
-> - Safari 扩展需要使用 Apple Developer 账号签名
-> - Safari 扩展要求 macOS 11.0 及以上版本
-
-## 安装开发版
-
-### Chrome
-
-1. 解压 `artifacts/chrome.zip`
+1. 先构建 Chrome 版本
 2. 打开 `chrome://extensions`
-3. 启用开发者模式
-4. 点击“加载已解压的扩展程序”，选择解压后的目录
+3. 开启开发者模式
+4. 点击“加载已解压的扩展程序”
+5. 选择 `build` 目录
 
 ### Firefox
 
-1. 打开 `about:addons`
-2. 点击右上角齿轮图标，选择“从文件安装附加组件”
-3. 选择 `artifacts/firefox.zip`
+1. 先构建 Firefox 版本
+2. 打开 `about:debugging#/runtime/this-firefox`
+3. 点击“加载临时附加组件”
+4. 选择 `build/manifest.json`
 
-> [!NOTE]
-> Firefox 安装未签名扩展通常需要 Developer Edition 或 Nightly。
-> 在 Firefox Developer Edition 中，你还需要在 `about:config` 中将 `xpinstall.signatures.required` 设为 `false`。
+## 推荐使用流程
 
-[activitywatch]: https://github.com/ActivityWatch/activitywatch
-[firefox]: https://addons.mozilla.org/en-US/firefox/addon/aw-watcher-web/
-[chrome]: https://chromewebstore.google.com/detail/activitywatch-web-watcher/nglaklhklhcoonedhgnpgddginnjdadi
+对大多数场景，最简单的流程是：
+
+1. 构建扩展
+2. 在浏览器中安装
+3. 打开设置页
+4. 填写 `ActivityWatch Server URL`
+5. 保存后开始使用
+
+## English README
+
+参见 [README.md](./README.md)。

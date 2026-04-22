@@ -3,13 +3,20 @@ import config from '../config'
 import { AWClient, IEvent } from 'aw-client'
 import retry from 'p-retry'
 import { emitNotification, getBrowser, logHttpError } from './helpers'
-import { getHostname, getSyncStatus, setSyncStatus } from '../storage'
+import {
+  getHostname,
+  getServerUrl,
+  getSyncStatus,
+  setSyncStatus,
+} from '../storage'
 
-export const getClient = () =>
-  new AWClient('aw-client-web', {
-    baseURL: config.activityWatch.baseUrl,
+export const getClient = async () => {
+  const baseURL = (await getServerUrl()) || config.activityWatch.baseUrl
+  return new AWClient('aw-client-web', {
+    baseURL,
     testing: config.isDevelopment,
   })
+}
 
 // TODO: We might want to get the hostname somehow, maybe like this:
 // https://stackoverflow.com/questions/28223087/how-can-i-allow-firefox-or-chrome-to-read-a-pcs-hostname-or-other-assignable

@@ -27,7 +27,7 @@ async function getIsConsentRequired() {
 async function autodetectHostname() {
   const hostname = await getHostname()
   if (hostname === undefined) {
-    const detectedHostname = await detectHostname(client)
+    const detectedHostname = await detectHostname(await client)
     if (detectedHostname !== undefined) {
       setHostname(detectedHostname)
     }
@@ -68,7 +68,8 @@ browser.alarms.onAlarm.addListener(heartbeatAlarmListener(client))
 browser.tabs.onActivated.addListener(tabActivatedListener(client))
 
 console.debug('Setting base url')
-setBaseUrl(client.baseURL)
+client
+  .then((resolvedClient) => setBaseUrl(resolvedClient.baseURL))
   .then(() =>
     console.debug('Waiting for enable before sending initial heartbeat'),
   )

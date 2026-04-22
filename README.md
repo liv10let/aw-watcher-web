@@ -1,20 +1,17 @@
 # aw-watcher-web
 
-[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/nglaklhklhcoonedhgnpgddginnjdadi.svg)][chrome]
-[![Mozilla Add-on](https://img.shields.io/amo/v/aw-watcher-web.svg)][firefox]
+A browser extension that sends active tab activity to an ActivityWatch server.
 
-A cross-browser WebExtension that serves as a web browser watcher for [ActivityWatch][activitywatch].
+This project is based on `aw-watcher-web`, but the README below documents this
+repository as-is: how to configure it, build it, and use it with your own
+ActivityWatch server.
 
-中文说明请见 [README.zh-CN.md](./README.zh-CN.md)。
+## What It Collects
 
-## Server Configuration
+The extension reports the current active browser tab as ActivityWatch
+`web.tab.current` events.
 
-By default, this project sends browser heartbeat data to:
-
-- `http://localhost:5600`
-
-The extension still uses the standard ActivityWatch `web.tab.current` bucket
-type and sends the same browser event fields as upstream, including:
+Each event includes:
 
 - `url`
 - `title`
@@ -22,13 +19,33 @@ type and sends the same browser event fields as upstream, including:
 - `incognito`
 - `tabCount`
 
-If you want to point the extension at a different ActivityWatch server:
+## How Server Configuration Works
 
-- Set `VITE_ACTIVITYWATCH_BASE_URL` when building, or update `src/config.ts`
-- Update `src/manifest.json` to allow the target API origin in Firefox
-- Update `src/popup/index.html` if you also want the popup Web UI link to match
+This project supports two ways to choose the ActivityWatch server:
 
-Example: build against a remote ActivityWatch server
+1. Runtime configuration in the extension settings page
+2. Build-time default configuration through `VITE_ACTIVITYWATCH_BASE_URL`
+
+The runtime setting is the one users should use in normal daily usage.
+
+## Configure Server In The Extension
+
+After installing the extension:
+
+1. Open the extension settings page
+2. Find `ActivityWatch Server URL`
+3. Enter your server address, for example `http://localhost:5600`
+4. Click `Save`
+5. The extension will reload and start using the new server
+
+This is the recommended way to use this project.
+
+## Build-Time Default Server
+
+If you want the packaged extension to ship with a predefined default server,
+build it with `VITE_ACTIVITYWATCH_BASE_URL`.
+
+Example:
 
 ```sh
 # Chrome
@@ -42,157 +59,76 @@ VITE_TARGET_BROWSER=firefox \
 npx vite build
 ```
 
-For Firefox, remember to also allow the matching API origin in
-`src/manifest.json`, for example:
+If the user later changes the server URL in the settings page, the saved runtime
+value takes precedence over the build-time default.
 
-```json
-{
-  "permissions": [
-    "http://your-server:5600/api/*"
-  ]
-}
-```
+## Firefox Notes
 
-## Installation
+This repository currently allows Firefox to connect to configurable server
+addresses by using broad host access in the extension manifest.
 
-### Official Releases
+That is convenient for self-hosted deployments and internal use. If you plan to
+publish this version publicly, you should review whether the permission scope is
+appropriate for your release target.
 
-Install from official stores:
+## Development
 
-- [Chrome Web Store][chrome]
-- [Firefox Add-ons][firefox]
+### Requirements
 
-### Development Build
+- Node.js 23+
+- npm
 
-Download the latest development build from our [GitHub Actions][gh-actions]:
-
-1. Click on the latest successful workflow run
-2. Scroll down to "Artifacts"
-3. Download either `firefox.zip` or `chrome.zip`
-
-> [!NOTE]
->
-> - GitHub login is required to download artifacts
-> - These builds are unsigned and require developer mode/settings
-
-### Firefox Enterprise Policy
-
-> [!NOTE]
-> Due to Mozilla Add-on Policy, this is not possible with the Mozilla-hosted versions of the extension. You will need to fork the extension and change a hardcoded value to make this work.
-
-Due to the above issue, a privacy notice must be displayed to comply with the Mozilla Add-on Policy. This can be pre-accepted by setting the following Firefox Enterprise Policy ([More about Firefox Policies][mozilla-policy]):
-
-```json
-{
-    "policies": {
-        "3rdparty": {
-            "Extensions": {
-                "{ef87d84c-2127-493f-b952-5b4e744245bc}": {
-                    "consentOfflineDataCollection": true
-                }
-            }
-        }
-    }
-}
-```
-
-## Building from Source
-
-### Prerequisites
-
-- Node.js (23 or higher)
-- Git
-- Make
-
-### Build Steps
-
-1. Clone the repository with submodules:
+### Install Dependencies
 
 ```sh
-git clone --recurse-submodules https://github.com/ActivityWatch/aw-watcher-web.git
-cd aw-watcher-web
+npm ci
 ```
 
-2. Install dependencies:
+### Type Check
 
 ```sh
-make install
+npx tsc --noEmit
 ```
 
-3. Build the extension:
+### Build
 
 ```sh
-# For Firefox:
-make build-firefox
+# Chrome
+VITE_TARGET_BROWSER=chrome npx vite build
 
-# For Chrome:
-make build-chrome
+# Firefox
+VITE_TARGET_BROWSER=firefox npx vite build
 ```
 
-This will create zip files in the `artifacts` directory:
+The output is written to the `build` directory.
 
-- `artifacts/firefox.zip` for Firefox
-- `artifacts/chrome.zip` for Chrome
+## Install The Built Extension
 
-For local unpacked installs built from this fork, the generated extension will
-connect to the server configured in `src/config.ts` or overridden by
-`VITE_ACTIVITYWATCH_BASE_URL`.
+### Chrome / Edge
 
-## if you want to build safari version
+1. Build the project for Chrome
+2. Open `chrome://extensions`
+3. Enable Developer Mode
+4. Click `Load unpacked`
+5. Select the `build` directory
 
-1. First follow the steps above to build the extension:
+### Firefox
 
-```sh
-make install
-make build-safari
-```
+1. Build the project for Firefox
+2. Open `about:debugging#/runtime/this-firefox`
+3. Click `Load Temporary Add-on`
+4. Select `build/manifest.json`
 
-2. Convert the extension to Safari format:
+## Recommended Workflow
 
-```sh
-xcrun safari-web-extension-converter ./build
-```
+For most usage, the simplest workflow is:
 
-after finished, xcode will open automatically.
+1. Build the extension
+2. Install it in the browser
+3. Open settings
+4. Set `ActivityWatch Server URL`
+5. Save and start using it
 
-3. In Xcode:
+## Chinese README
 
-- Select build target of macOS
-- Build the project (⌘B)
-- Run the extension (⌘R)
-
-4. Enable the extension in Safari:
-    - Open Safari
-    - Go to Safari > Settings > Extensions
-    - Enable "aw-watcher-web"
-
-> [!NOTE]
->
-> - You need Xcode installed to build Safari extensions
-> - The extension needs to be signed with your Apple Developer account
-> - Safari extensions require macOS 11.0 or later
-
-### Installing the Development Build
-
-#### Chrome
-
-1. Extract `artifacts/chrome.zip` to a folder
-2. Go to `chrome://extensions`
-3. Enable "Developer mode"
-4. Click "Load unpacked" and select the extracted folder
-
-#### Firefox
-
-1. Go to `about:addons`
-2. Click the gear icon (⚙️) and select "Install Add-on From File..."
-3. Navigate to and select the `artifacts/firefox.zip` file
-
-> [!NOTE]
-> For Firefox, installing unsigned extensions requires Firefox Developer Edition or Nightly.
-> In Firefox Developer Edition, you need to set `xpinstall.signatures.required` to `false` in `about:config`.
-
-[activitywatch]: https://github.com/ActivityWatch/activitywatch
-[firefox]: https://addons.mozilla.org/en-US/firefox/addon/aw-watcher-web/
-[chrome]: https://chromewebstore.google.com/detail/activitywatch-web-watcher/nglaklhklhcoonedhgnpgddginnjdadi
-[mozilla-policy]: https://mozilla.github.io/policy-templates/
-[gh-actions]: https://github.com/ActivityWatch/aw-watcher-web/actions/workflows/build.yml?query=branch%3Amaster+is%3Asuccess
+See [README.zh-CN.md](./README.zh-CN.md).

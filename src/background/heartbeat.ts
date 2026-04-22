@@ -7,7 +7,7 @@ import { getEnabled, getHeartbeatData, setHeartbeatData } from '../storage'
 import deepEqual from 'deep-equal'
 
 async function heartbeat(
-  client: AWClient,
+  client: Promise<AWClient>,
   tab: browser.Tabs.Tab | undefined,
   tabCount: number,
 ) {
@@ -42,18 +42,18 @@ async function heartbeat(
   }
   const previousData = await getHeartbeatData()
   if (previousData && !deepEqual(previousData, data)) {
-    console.debug('Sending heartbeat for previous data', previousData)
-    await sendHeartbeat(
-      client,
-      await getBucketId(),
-      new Date(now.getTime() - 1),
-      previousData,
+      console.debug('Sending heartbeat for previous data', previousData)
+      await sendHeartbeat(
+        await client,
+        await getBucketId(),
+        new Date(now.getTime() - 1),
+        previousData,
       config.heartbeat.intervalInSeconds + 20,
     )
   }
   console.debug('Sending heartbeat', data)
   await sendHeartbeat(
-    client,
+    await client,
     await getBucketId(),
     now,
     data,
@@ -62,7 +62,7 @@ async function heartbeat(
   await setHeartbeatData(data)
 }
 
-export const sendInitialHeartbeat = async (client: AWClient) => {
+export const sendInitialHeartbeat = async (client: Promise<AWClient>) => {
   const activeWindowTab = await getActiveWindowTab()
   const tabs = await getTabs()
   console.debug('Sending initial heartbeat', activeWindowTab?.url)
@@ -70,7 +70,7 @@ export const sendInitialHeartbeat = async (client: AWClient) => {
 }
 
 export const heartbeatAlarmListener =
-  (client: AWClient) => async (alarm: browser.Alarms.Alarm) => {
+  (client: Promise<AWClient>) => async (alarm: browser.Alarms.Alarm) => {
     if (alarm.name !== config.heartbeat.alarmName) return
     const activeWindowTab = await getActiveWindowTab()
     if (!activeWindowTab) return
@@ -80,7 +80,7 @@ export const heartbeatAlarmListener =
   }
 
 export const tabActivatedListener =
-  (client: AWClient) =>
+  (client: Promise<AWClient>) =>
   async (activeInfo: browser.Tabs.OnActivatedActiveInfoType) => {
     const tab = await getTab(activeInfo.tabId)
     const tabs = await getTabs()
